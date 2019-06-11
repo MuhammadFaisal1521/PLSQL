@@ -1,0 +1,78 @@
+create or replace procedure unwrap_r(aname varchar2)
+is
+    	root sys.pidl.ptnod;
+    	status   sys.pidl.ub4;
+	--
+    	procedure recurse (n sys.pidl.ptnod) is
+	--
+    		seq sys.pidl.ptseqnd;
+		len integer;
+    	--
+    	begin
+    		--
+		--dbms_output.put_line('Node :'||n);
+		--dbms_output.put_line('code (DEC) :'||pidl.ptkin(n));
+		--dbms_output.put_line('Node Type :'||pidl.ptattnnm(pidl.ptkin(n)));
+		--dbms_output.put_line('--');    		
+    		if(pidl.ptkin(n) = diana.d_comp_u) then
+    			recurse(diana.a_unit_b(n));
+    		elsif (pidl.ptkin(n) = diana.d_s_body) then
+			dbms_output.put_line('CREATE OR REPLACE ');
+			recurse(diana.a_d_(n));
+			recurse(diana.a_header(n));
+			recurse(diana.a_block_(n));
+			dbms_output.put_line('END;');
+			dbms_output.put_line('/');
+    		elsif(pidl.ptkin(n) = diana.di_proc) then
+			dbms_output.put_line('PROCEDURE '||diana.l_symrep(n));
+    		elsif(pidl.ptkin(n) = diana.d_p_) then
+    			recurse(diana.as_p_(n));
+    		elsif(pidl.ptkin(n) = diana.ds_param) then
+    			-- not implemented
+    			null;
+    		elsif(pidl.ptkin(n) = diana.d_block) then
+    			dbms_output.put_line('IS ');
+    			recurse(diana.as_item(n));
+    			dbms_output.put_line('BEGIN');
+    			recurse(diana.as_stm(n));
+    			recurse(diana.as_alter(n));
+    		elsif(pidl.ptkin(n) = diana.ds_item) then
+    			-- not implemented
+    			null;
+    		elsif(pidl.ptkin(n) = diana.ds_stm) then
+			seq := diana.as_list(n);
+			len := pidl.ptslen(seq) - 1;
+			for i in 0..len loop
+				recurse(pidl.ptgend(seq,i));
+			end loop;
+    		elsif(pidl.ptkin(n) = diana.d_null_s) then
+    			dbms_output.put_line('NULL;');
+    		elsif(pidl.ptkin(n) = diana.ds_alter) then
+    			-- not implemented
+    			null;
+    		else
+    			dbms_output.put_line('****ERROR*****');
+    		end if;
+    		--
+    	end recurse;
+    	--
+begin
+
+	dbms_output.put_line('Start up');
+	sys.diutil.get_diana(
+		aname, NULL, NULL,
+		NULL, status, root,
+		1);
+	
+	if (status <> sys.diutil.s_ok) then
+		sys.dbms_output.put_line('Error: couldn''t find diana; status:  ' ||
+                           to_char(status));
+		raise sys.diutil.e_subpNotFound;
+	end if;
+	-- 
+	-- recurse through the DIANA nodes
+	--
+	recurse(root);
+	--
+end unwrap_r;
+/ 

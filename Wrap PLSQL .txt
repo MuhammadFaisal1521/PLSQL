@@ -1,0 +1,58 @@
+SET SERVEROUTPUT ON SIZE UNLIMITED
+DECLARE
+  l_source  VARCHAR2(32767);
+  l_wrap    VARCHAR2(32767);
+BEGIN
+  l_source := 'CREATE OR REPLACE FUNCTION get_date_string RETURN VARCHAR2 AS ' ||
+              'BEGIN ' ||
+              'RETURN TO_CHAR(SYSDATE, ''DD-MON-YYYY''); ' ||
+              'END get_date_string;';
+
+  l_wrap := SYS.DBMS_DDL.WRAP(ddl => l_source);
+  DBMS_OUTPUT.put_line(l_wrap);
+END;
+/
+CREATE OR REPLACE FUNCTION get_date_string wrapped
+
+a000000
+b2
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+abcd
+8
+6f
+aa
+mV4eMSJ8EqqgErJT91l6UZ0pdDUwgyr6LZ5GfHSmUPiJfkEObQpeDb6D7glajI+ONulxdqC1
+0HvOPP4eJpQs5zxsKXpj6XL1
+fvieXyWCr3BTzXTqcGYhfXrtqDVPztR/o+9UZ8l5OijDSsRW
+ZPv6rISzFyqeEsCBweFUFyxd
+
+
+PL/SQL procedure successfully completed.
+
+SQL>
+This works fine for PL/SQL source that is less than or equal to 32K in size, but the VARCHAR2 input parameter means it can't cope with source larger than this. Fortunately the other overloads of this function allow us to work with source greater than 32K in size.
+
+DBMS_DDL.WRAP(
+   ddl      DBMS_SQL.VARCHAR2S,
+   lb       PLS_INTEGER,
+   ub       PLS_INTEGER)
+  RETURN DBMS_SQL.VARCHAR2S;
+
+DBMS_DDL.WRAP(
+   ddl      DBMS_SQL.VARCHAR2A,
+   lb       PLS_INTEGER,
+   ub       PLS_INTEGER)
+  RETURN DBMS_SQL.VARCHAR2A;

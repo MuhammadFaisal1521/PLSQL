@@ -1,0 +1,1 @@
+set sqlprompt SQL PLUS>

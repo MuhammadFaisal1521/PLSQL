@@ -1,0 +1,15 @@
+select  (select sys_context('USERENV','SERVER_HOST')from  dual)||' -- '||OBJECT_TYPE||' -- '||S.OBJECT_NAME||' -- created:'||to_char(created,'dd-Mon-yyyy hh:mi am') ||' -- Last DDL :'||to_char(last_ddl_time,'dd-Mon-yyyy hh:mi am')||' -- Status:'||status OBJECTnAME , DBMS_METADATA.GET_DDL(S.OBJECT_TYPE,S.OBJECT_NAME)object_metadata
+from USER_OBJECTS S
+WHERE CREATED > '10-SEP-2017'
+and object_type  in ('FUNCTION','PROCEDURE','PACKAGE','TABLE','VIEW')
+
+
+
+
+
+
+
+select  (select sys_context('USERENV','SERVER_HOST')from  dual)||' - '||OBJECT_TYPE||' - '||S.OBJECT_NAME ||' - '||last_ddl_time||decode(status,'VALID',' - T',NULL) OBJECTnAME , DBMS_METADATA.GET_DDL(S.OBJECT_TYPE,S.OBJECT_NAME)object_metadata
+from USER_OBJECTS S
+WHERE CREATED > '10-SEP-2017'
+and object_type  in ('FUNCTION','PROCEDURE','PACKAGE','TABLE','VIEW')

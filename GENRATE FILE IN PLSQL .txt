@@ -1,0 +1,36 @@
+create directory tmp as '/tmp/';
+
+Directory created
+
+SQL> CREATE OR REPLACE PROCEDURE write_log AS
+  2     l_line VARCHAR2(255);
+  3     l_done NUMBER;
+  4     l_file utl_file.file_type;
+  5  BEGIN
+  6     l_file := utl_file.fopen('TMP', 'foo.log', 'A');
+  7     LOOP
+  8        EXIT WHEN l_done = 1;
+  9        dbms_output.get_line(l_line, l_done);
+ 10        utl_file.put_line(l_file, l_line);
+ 11     END LOOP;
+ 12     utl_file.fflush(l_file);
+ 13     utl_file.fclose(l_file);
+ 14  END write_log;
+ 15  /
+
+Procedure created
+
+SQL> BEGIN
+  2     dbms_output.enable(100000);
+  3     -- write something to DBMS_OUTPUT
+  4     dbms_output.put_line('this is a test');
+  5     -- write the content of the buffer to a file
+  6     write_log;
+  7  END;
+  8  /
+
+PL/SQL procedure successfully completed
+
+SQL> host cat /tmp/foo.log
+
+this is a test

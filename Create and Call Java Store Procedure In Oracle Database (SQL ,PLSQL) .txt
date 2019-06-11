@@ -1,0 +1,66 @@
+
+/* $Header
+*******************************************************************************
+---------  Documentation Comments ---------
+
+Name         	 : Create / Call  java In Oracle Database...
+Created By       : Falick Faisal , Attah ullah
+Created Date     : 17-may-2018
+
+
+code Comments: 
+
+1) Query All Registry Banners  that will show you Java is install In Oracle database or not.
+   According to my experince Orale Ebs, and 12c have built-in Java Installation. 
+
+select * from all_registry_banners;
+
+this query will give you details like below lines that means Java is installed.
+
+=> "JServer JAVA Virtual Machine Release 12.1.0.2.0 - Production"
+=>  "Oracle Database Java Packages Release 12.1.0.2.0 - Production"
+
+
+2) you User must be granted as "Create Function , Procedure " Rights on Resource.
+
+*/
+
+
+
+
+Now 
+1) Create or  Load  Java Source in Database 
+
+
+CREATE or replace  JAVA SOURCE NAMED "Welcome" AS
+public class Welcome {
+public static String welcome() {
+ System.out.println("Here we are");
+return "hello"; } }
+
+
+
+2) Create Function That will Call java program and return result .
+
+ CREATE FUNCTION Welcome_Java_Function RETURN VARCHAR2
+ AS LANGUAGE JAVA
+ NAME 'Welcome.welcome() return java.lang.String';
+
+
+3) use Function To get Result  
+ 
+ select Welcome_Java_Function() from dual;
+
+
+/*Incase of Invalid Java Source */
+
+SELECT owner, object_name
+FROM   dba_objects
+WHERE  object_type IN ('JAVA CLASS')
+AND    status != 'VALID'
+
+
+---Compile Java Code if you required 
+
+ ALTER JAVA SOURCE "APPS"."Welcome" COMPILE;
+ ALTER JAVA CLASS "APPS"."Welcome" RESOLVE

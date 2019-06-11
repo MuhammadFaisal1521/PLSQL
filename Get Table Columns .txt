@@ -1,0 +1,5 @@
+select rpad(Column_name,35,' ') ||'                                         '||table_name||'.'||Column_name||'%type ,'  , rpad(Column_name,35,' ') 
+from all_tab_cols
+where table_name ='TGC_CORR_PLANNING_DETAIL_G'     
+order by column_id     
+                      

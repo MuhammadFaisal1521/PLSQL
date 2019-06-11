@@ -1,0 +1,13 @@
+Declare 
+   fid UTL_FILE.FILE_TYPE;
+BEGIN
+   fid := UTL_FILE.FOPEN ('D', 'sqlnet.log', 'R');
+EXCEPTION
+   WHEN OTHERS THEN 
+   Dbms_output.put_line(SQLerrm);
+END;
+
+select * from dba_directories
+
+
+create directory D as 'D:/'

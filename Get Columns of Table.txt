@@ -1,0 +1,7 @@
+select listagg(con,'----'||chr(13)) within group (order by 1) from 
+(select Column_name||','||chr(13) con
+from all_tab_columns
+where Table_name='TGC_PRODUCTION_NOTE'
+AND COLUMN_NAME LIKE 'ATTRIBUTE%'
+ORDER BY COLUMN_ID
+)

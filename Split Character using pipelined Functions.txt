@@ -1,0 +1,24 @@
+create or replace function split (i_str in varchar2, i_delimiter in varchar2 default ',') 
+  return sys.odcivarchar2list
+  pipelined
+  as
+    l_current_string varchar2(4000) := i_str;
+    l_pos            binary_integer;
+  begin
+    if i_str is null then
+        return;
+    end if;
+    loop
+      l_pos := nullif(instr(l_current_string, i_delimiter), 0);
+      pipe row(substr(l_current_string, 1, nvl(l_pos - 1, length(l_current_string))));
+      exit when l_pos is null;
+      l_current_string := substr(l_current_string, l_pos + length(i_delimiter));
+  end loop;
+end split;
+
+
+
+select initcap(column_value) as name,
+       length(column_value) as name_length
+from   table(split('paris,london,rome,madrid'))
+order  by column_value

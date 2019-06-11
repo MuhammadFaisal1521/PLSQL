@@ -1,0 +1,24 @@
+SQL> CREATE OR REPLACE PROCEDURE demo(p_sql IN VARCHAR2) AS
+  2     l_cursor  INTEGER;
+  3     l_dummy   NUMBER;
+  4     timestart NUMBER;
+  5  BEGIN
+  6     dbms_output.enable;
+  7     timestart := dbms_utility.get_time();
+  8     l_cursor  := dbms_sql.open_cursor;
+  9     dbms_sql.parse(l_cursor, p_sql, dbms_sql.native);
+ 10     l_dummy := dbms_sql.execute(l_cursor);
+ 11     LOOP
+ 12        EXIT WHEN dbms_sql.fetch_rows(l_cursor) <= 0;
+ 13     END LOOP;
+ 14     dbms_sql.close_cursor(l_cursor);
+ 15     dbms_output.put_line(dbms_utility.get_time() - timestart);
+ 16  END;
+ 17  /
+
+Procedure created.
+
+SQL> exec demo('SELECT * FROM dual CONNECT BY LEVEL <= 1e6');
+744
+
+PL/SQL procedure successfully completed.

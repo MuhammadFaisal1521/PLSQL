@@ -1,0 +1,25 @@
+Declare
+
+Type l_selected_rec is Record (l_header_id Number , l_Line_id Number , l_creation_flag char(1) , l_Merge_flag char(1) );
+type ll_number_tab is Table of l_selected_rec index by pls_integer;
+l_number_tab    ll_number_tab;
+l_index_id pls_integer;
+begin
+for ldx in 1..l_number_tab.count loop 
+
+            if ldx = 1 then
+                l_index_id :=l_number_tab.first;
+            else
+                l_index_id := l_number_tab.next(l_index_id);
+            end if;
+Dbms_output.put_line('A= >'||l_index_id );
+/*       
+Dbms_output.put_line('1=> '||l_number_tab.first);
+Dbms_output.put_line('2=> '||l_number_tab.next(l_number_tab.FIRST));
+Dbms_output.put_line('3=> '||l_number_tab.prior(6));
+*/
+end loop;
+exception when no_data_found 
+then 
+Dbms_output.put_line('Hello World');
+end;

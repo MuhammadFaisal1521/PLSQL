@@ -1,0 +1,44 @@
+Declare 
+l_method_prefix varchar2(200) :='Production_note';
+l_Table_Name varchar2(200) :='TGC_PRODUCTION_NOTE';
+l_string           Clob;
+l_Table_Columns Clob;
+nl                   varchar2(200) default chr(13);
+ncl                 varchar2(200) default l_string ||nl||nl||'/*'||lpad('*',100,'*')||'*/';
+begin
+    --Get Table Columns 
+    
+select listagg(column_name,','||chr(13))within group (order by column_id ) 
+Into l_Table_Columns 
+from 
+(
+Select column_name ||'                          '||Table_name||'.'||Column_name||'%Type' column_name ,column_id 
+From All_Tab_Columns
+Where Table_Name=Upper(l_Table_Name)
+Order By Column_Id Asc)   ;
+
+            l_string  :='--Create Record Type'||nl
+                            ||'Type '||l_method_prefix||'_RecType is Record ( '|| l_Table_Columns ||');';
+            
+            l_string :=l_string ||nl||'--Ref Cursor Type '||nl||'Type '||  l_method_prefix||'_RfCur Is Ref Cursor Return  '||l_method_prefix||'_RecType;';       
+            l_string :=l_string ||nl||'-- Plsql Table '||nl||' Type '|| l_method_prefix||'_TB is Table of '||l_method_prefix||'_RecType index by Binary_Interger;';
+            l_string :=l_string ||nl||nl||'---Select Data '||nl||'Procedure '|| l_method_prefix||'_Select (P_'||l_method_prefix||' In Out '||l_method_prefix||'_RfCur );';
+            l_string :=l_string ||nl||nl||'---Insert Data '||nl||'Procedure '|| l_method_prefix||'_Insert (P_'||l_method_prefix||' In Out '||l_method_prefix||'_TB );';
+            l_string :=l_string ||nl||nl||'---Update Data '||nl||'Procedure '|| l_method_prefix||'_Update (P_'||l_method_prefix||' In Out '||l_method_prefix||'_TB );';
+            l_string :=l_string ||nl||nl||'---Delete  Data '||nl||'Procedure '|| l_method_prefix||'_Delete (P_'||l_method_prefix||' In Out '||l_method_prefix||'_TB );';
+            l_string :=l_string ||nl||nl||'---Lock  Data '||nl||'Procedure '|| l_method_prefix||'_Lock (P_'||l_method_prefix||' In Out '||l_method_prefix||'_TB );'||ncl;           
+            
+            /* Table Column without DataType */
+                        select listagg(column_name,','||chr(13))within group (order by column_id ) 
+            Into l_Table_Columns 
+            from 
+            (
+            Select column_name  ,column_id 
+            From All_Tab_Columns
+            Where Table_Name=Upper(l_Table_Name)
+            Order By Column_Id Asc)   ;
+            
+             l_string :=l_string ||nl||nl||'---Select Data '||nl||'Procedure '|| l_method_prefix||'_Select (P_'||l_method_prefix||' In Out '||l_method_prefix||'_RfCur ) is '||nl
+                            ||'Begin'||nl||'Open p_'||l_method_prefix||' For Select '|| l_Table_Columns||nl ||' From '||l_Table_Name||';'||nl||'End '||l_method_prefix||'_Select;';
+            Dbms_output.put_line(l_string);
+end;

@@ -1,0 +1,95 @@
+DECLARE
+    v_from_name         VARCHAR2(100) := 'admin@falickfaisal.com';
+    v_to_name           VARCHAR2(100) := 'falickfaisal@gmail.com';
+ 
+    v_subject           VARCHAR2(100) := 'This is an awesome mail';
+    v_message_body      VARCHAR2(100) := 'Hey you!! Bla Bla Bluu';
+    v_message_type      VARCHAR2(100) := 'text/plain';
+ 
+    v_smtp_server       VARCHAR2(200)  := 'smtpout.asia.secureserver.net';
+    n_smtp_server_port  NUMBER        := 25;
+    conn                utl_smtp.connection;
+ 
+    TYPE attach_info IS RECORD (
+        attach_name     VARCHAR2(40),
+        data_type       VARCHAR2(40) DEFAULT 'text/plain',
+        attach_content  CLOB DEFAULT ''
+    );
+    TYPE array_attachments IS TABLE OF attach_info;
+    attachments array_attachments := array_attachments();
+ 
+    n_offset            NUMBER;
+    n_amount            NUMBER        := 1900;
+    v_crlf              VARCHAR2(5)   := CHR(13) || CHR(10);
+    base64username VARCHAR2(40) := UTL_RAW.cast_to_varchar2(UTL_ENCODE.base64_encode(UTL_RAW.cast_to_raw('admin@falickfaisal.com')));  
+base64password  VARCHAR2(40):= UTL_RAW.cast_to_varchar2(UTL_ENCODE.base64_encode(UTL_RAW.cast_to_raw('123456789')));
+
+
+ 
+BEGIN
+ 
+  -- Fill data for example
+    attachments.extend(5);
+    FOR i IN 1..5
+    LOOP
+        SELECT 'test' || to_char(i) || '.txt','text/plain','test' || to_char(i)
+        INTO attachments(i)
+        FROM dual;
+    END LOOP;
+ 
+
+
+  -- Open the SMTP connection ...
+    conn := utl_smtp.open_connection(v_smtp_server,n_smtp_server_port);
+    utl_smtp.helo(conn, v_smtp_server);
+    UTL_SMTP.command(conn, 'AUTH', 'LOGIN');
+    UTL_SMTP.command(conn, base64username );
+    UTL_SMTP.command(conn, base64password );
+
+    utl_smtp.mail(conn, v_from_name);
+    utl_smtp.rcpt(conn, v_to_name);
+ 
+  -- Open data
+    utl_smtp.open_data(conn);
+ 
+  -- Message info
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('To: ' || v_to_name || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Date: ' || to_char(sysdate, 'Dy, DD Mon YYYY hh24:mi:ss') || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('From: ' || v_from_name || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Subject: ' || v_subject || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('MIME-Version: 1.0' || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Content-Type: multipart/mixed; boundary="SECBOUND"' || v_crlf || v_crlf));
+ 
+  -- Message body
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('--SECBOUND' || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Content-Type: ' || v_message_type || v_crlf || v_crlf));
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw(v_message_body || v_crlf));
+ 
+  -- Attachment Part
+    FOR i IN attachments.FIRST .. attachments.LAST
+    LOOP
+    -- Attach info
+        utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('--SECBOUND' || v_crlf));
+        utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Content-Type: ' || attachments(i).data_type
+                            || ' name="'|| attachments(i).attach_name || '"' || v_crlf));
+        utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('Content-Disposition: attachment; filename="'
+                            || attachments(i).attach_name || '"' || v_crlf || v_crlf));
+ 
+    -- Attach body
+        n_offset := 1;
+        WHILE n_offset < dbms_lob.getlength(attachments(i).attach_content)
+        LOOP
+            utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw(dbms_lob.substr(attachments(i).attach_content, n_amount, n_offset)));
+            n_offset := n_offset + n_amount;
+        END LOOP;
+        utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('' || v_crlf));
+    END LOOP;
+ 
+  -- Last boundry
+    utl_smtp.write_raw_data(conn, utl_raw.cast_to_raw('--SECBOUND--' || v_crlf));
+ 
+  -- Close data
+    utl_smtp.close_data(conn);
+    utl_smtp.quit(conn);
+ 
+END;

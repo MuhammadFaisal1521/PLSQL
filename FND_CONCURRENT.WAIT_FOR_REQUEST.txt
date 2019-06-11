@@ -1,0 +1,144 @@
+DECLARE
+  --
+  -- +=========================================================================
+  -- | Purpose : How to make a Concurrent Program WAIT till completion another Concurrent Program execution?
+  -- | Author  : Shailender Thallam
+  -- +=========================================================================
+  --
+  lv_request_id       NUMBER;
+  lc_phase            VARCHAR2(50);
+  lc_status           VARCHAR2(50);
+  lc_dev_phase        VARCHAR2(50);
+  lc_dev_status       VARCHAR2(50);
+  lc_message          VARCHAR2(50);
+  l_req_return_status BOOLEAN;
+BEGIN
+  --
+  --Setting Context
+  --
+   fnd_global.apps_initialize (
+      user_id             => fnd_profile.VALUE ('USER_ID'),
+      resp_id             => fnd_profile.VALUE ('RESP_ID'),
+      resp_appl_id        => fnd_profile.VALUE ('RESP_APPL_ID'),
+      security_group_id   => 0);
+  --
+  -- Submitting XX_PROGRAM_1;
+  --
+    lv_request_id := fnd_request.submit_request ( 
+                            application   => 'XXCUST', 
+                            program       => 'XX_PROGRAM_1', 
+                            description   => 'XX_PROGRAM_1', 
+                            start_time    => sysdate, 
+                            sub_request   => FALSE);
+   COMMIT;
+ 
+  IF lv_request_id = 0 THEN
+    dbms_output.put_line( 'Request Not Submitted due to "' || fnd_message.get || '".');
+  ELSE
+    dbms_output.put_line( 'The Program PROGRAM_1 submitted successfully – Request id :' || lv_request_id);
+  END IF;
+  IF lv_request_id > 0 THEN
+    LOOP
+ --
+      --To make process execution to wait for 1st program to complete
+      --
+         l_req_return_status :=
+            fnd_concurrent.wait_for_request (request_id      => lv_request_id
+                                            ,INTERVAL        => 5 --interval Number of seconds to wait between checks
+                                            ,max_wait        => 60 --Maximum number of seconds to wait for the request completion
+                                             -- out arguments
+                                            ,phase           => lc_phase
+                                            ,STATUS          => lc_status
+                                            ,dev_phase       => lc_dev_phase
+                                            ,dev_status      => lc_dev_status
+                                            ,message         => lc_message
+                                            );						
+      EXIT
+    WHEN UPPER (lc_phase) = 'COMPLETED' OR UPPER (lc_status) IN ('CANCELLED', 'ERROR', 'TERMINATED');
+    END LOOP;
+    --
+    --
+    IF UPPER (lc_phase) = 'COMPLETED' AND UPPER (lc_status) = 'ERROR' THEN
+      dbms_output.put_line('The XX_PROGRAM_1 completed in error. Oracle request id: '||lv_request_id ||' '||SQLERRM);
+    ELSIF UPPER (lc_phase) = 'COMPLETED' AND UPPER (lc_status) = 'NORMAL' THEN
+      dbms_output.put_line( 'The XX_PROGRAM_1 request successful for request id: ' || lv_request_id);
+      --
+      --Submitting Second Concurrent Program XX_PROGRAM_2
+      --
+	  BEGIN
+	  --
+		lv_request_id := fnd_request.submit_request ( 
+                            application   => 'XXCUST', 
+                            program       => 'XX_PROGRAM_2', 
+                            description   => 'XX_PROGRAM_2', 
+                            start_time    => sysdate, 
+                            sub_request   => FALSE);	
+		--
+		COMMIT;
+		--	
+      EXCEPTION
+      WHEN OTHERS THEN
+        dbms_output.put_line( 'OTHERS exception while submitting XX_PROGRAM_2: ' || SQLERRM);
+      END;
+    ELSE
+      dbms_output.put_line( 'The XX_PROGRAM_1 request failed. Oracle request id: ' || lv_request_id ||' '||SQLERRM);
+    END IF;
+  END IF;
+EXCEPTION
+WHEN OTHERS THEN
+  dbms_output.put_line( 'OTHERS exception while submitting XX_PROGRAM_1: ' || sqlerrm);
+END;
+
+/*
+
+This API Returns the Status of a concurrent request. It also returns the completion text if the request is already completed. The return type is Boolean (Returns TRUE on successful retrieval of the information, FALSE otherwise).
+
+
+function get_request_status(request_id     IN OUT NOCOPY number,
+                    appl_shortname IN varchar2 default NULL,
+                    program        IN varchar2 default NULL,
+                    phase      OUT NOCOPY varchar2,
+                    status     OUT NOCOPY varchar2,
+                    dev_phase  OUT NOCOPY varchar2,
+                    dev_status OUT NOCOPY varchar2,
+                    message    OUT NOCOPY varchar2) return boolean;
+The parameters are:
+
+REQUEST_ID: Request ID of the program to be checked.
+APPL_SHORTNAME: Short name of the application associated with the program. The default is NULL.
+PROGRAM: Short name of the concurrent program. The default is NULL.
+PHASE: Request phase.
+STATUS: Request status.
+DEV_PHASE: Request phase as a string constant.
+DEV_STATUS: Request status as a string constant.
+MESSAGE: Request completion message.
+FND_CONCURRENT.WAIT_FOR_REQUEST
+This API waits for the request completion, then returns the request phase/status and completion message to the caller. It goes to sleep between checks for the request completion. The return type is Boolean (Returns TRUE on successful retrieval of the information, FALSE otherwise).
+
+
+function wait_for_request(request_id IN number default NULL,
+        interval   IN  number default 60,
+        max_wait   IN  number default 0,
+        phase      OUT NOCOPY varchar2,
+        status     OUT NOCOPY varchar2,
+        dev_phase  OUT NOCOPY varchar2,
+        dev_status OUT NOCOPY varchar2,
+        message    OUT NOCOPY varchar2) return  boolean;
+The parameters are:
+
+REQUEST_ID: Request ID of the request to wait on. The default is NULL.
+INTERVAL: Number of seconds to wait between checks. The default is 60 seconds.
+MAX_WAIT: Maximum number of seconds to wait for the request completion. The default is 00 seconds.
+PHASE: User-friendly Request phase.
+STATUS: User-friendly Request status.
+DEV_PHASE: Request phase as a constant string.
+DEV_STATUS: Request status as a constant string.
+MESSAGE: Request completion message.
+There are few other useful apis too.
+FND_CONCURRENT.SET_COMPLETION_STATUS: Called from a concurrent request to set its completion status and message.
+FND_CONCURRENT.GET_REQUEST_PRINT_OPTIONS: Returns the print options for a concurrent request.
+FND_CONCURRENT.GET_SUB_REQUESTS: Get all sub-requests for a given request id. For each sub-request it provides request_id, phase,status, developer phase , developer status and completion text.
+FND_CONCURRENT.Cancel_Request: It cancels a given Concurrent Request.
+
+
+*/

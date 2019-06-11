@@ -1,0 +1,10 @@
+Begin 
+--------Trigger Block Start 
+
+		Tgc.Show_Error('Please transaction ');
+
+--------Trigger Block Start 
+Exception when Form_Trigger_failure 
+		Then 
+			Raise;
+End;

@@ -1,0 +1,14 @@
+with t as (
+select to_date('201111','yyyymm') ym from dual)
+SELECT * FROM (
+SELECT MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '1', LEVEL)) SUN
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '2', LEVEL)) MON
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '3', LEVEL)) TUE
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '4', LEVEL)) WED
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '5', LEVEL)) THU
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '6', LEVEL)) FRI
+, MIN (DECODE (TO_CHAR (YM + LEVEL - 1, 'd'), '7', LEVEL)) SAT
+FROM T
+CONNECT BY LEVEL <= LAST_DAY (YM) - YM + 1
+GROUP BY TRUNC (YM + LEVEL, 'iw')
+ORDER BY 7)

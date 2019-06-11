@@ -1,0 +1,30 @@
+CREATE OR REPLACE FUNCTION APPS.F_ENCRYPT (p_input VARCHAR2)
+RETURN VARCHAR2
+AS
+v_encrypted_raw     RAW (2000);
+v_key               RAW (320);
+v_encryption_type   PLS_INTEGER:=   DBMS_CRYPTO.DES_CBC_PKCS5;
+v_iv                RAW (320);
+
+BEGIN
+
+   SELECT VALUE
+INTO v_key
+ FROM algparameters
+WHERE name = 'key';
+
+   SELECT VALUE
+INTO v_iv
+ FROM algparameters
+WHERE name = 'iv';
+
+   v_encrypted_raw :=
+DBMS_CRYPTO.encrypt (src   => UTL_I18N.STRING_TO_RAW (p_input, 'AL32UTF8'),
+typ   => v_encryption_type,
+ key   => v_key,
+iv    => v_iv);
+
+   RETURN UTL_RAW.CAST_TO_VARCHAR2 (UTL_ENCODE.base64_encode (v_encrypted_raw));
+
+END;
+/

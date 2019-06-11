@@ -1,0 +1,140 @@
+CREATE OR REPLACE PACKAGE BODY APPS."UT_PLSQL" IS
+
+  Procedure Set_log_name(p_logName In varchar2)
+  is
+  begin 
+          G_Log_name:=p_logName;
+  end Set_log_name;
+
+
+PROCEDURE ADD_LOG(P_LOG_VALUES IN VARCHAR2,p_details in varchar2 default 'Null') IS
+    /*INSERT DATA INTO LOG TABLE*/
+    pragma autonomous_transaction;
+    l_index_id Number;
+  BEGIN
+    SELECT NVL(MAX(LOG_index), 0) + 1 LOG_ID
+      into l_index_id
+      FROM PLSQL_LOG 
+      where log_name = G_Log_name;  
+  
+  
+    INSERT INTO PLSQL_LOG(LOG_ID,LOG_DATE,CREATED_BY,LOG_NAME,LOG_index,  LOG_VALUES,FORMAT_CALL_STACK,FORMAT_ERROR_STACK,FORMAT_ERROR_BACKTRACE,GET_CPU_TIME , Details )
+    VALUES  ( PLSQL_LOG_seq.Nextval ,SYSDATE,USER,G_Log_name,l_index_id,  P_LOG_VALUES,DBMS_UTILITY.FORMAT_CALL_STACK,DBMS_UTILITY.FORMAT_ERROR_STACK , DBMS_UTILITY.FORMAT_ERROR_BACKTRACE, DBMS_UTILITY.GET_CPU_TIME , p_details );
+    Commit;
+END   ADD_LOG;
+
+  PROCEDURE DISPLAY_LOG(P_LOG_ID IN NUMBER) is
+    /*LOG OUTPUT */
+
+    LOG_ROWTYPE  PLSQL_LOG%ROWTYPE;
+
+    CURSOR PLSQL_C IS
+                                  SELECT *
+                                  FROM PLSQL_LOG cut
+                                  WHERE CUT.LOG_ID = P_LOG_ID
+                                  and cut.created_by=user;
+  BEGIN
+
+    --// OPEN AND FETCH
+    OPEN PLSQL_C;
+    FETCH PLSQL_C   INTO LOG_ROWTYPE;
+
+
+            IF  PLSQL_C%FOUND THEN
+              DBMS_OUTPUT.put_line('Test name : ' || LOG_ROWTYPE.LOG_name);
+              DBMS_OUTPUT.put_line('Test Values : ' || LOG_ROWTYPE.LOG_values);
+              DBMS_OUTPUT.put_line('------------------------------------------------------------------');
+              DBMS_OUTPUT.put_line('FORMAT_CALL_STACK : ' ||LOG_ROWTYPE.FORMAT_CALL_STACK  );
+              DBMS_OUTPUT.put_line('------------------------------------------------------------------');
+              DBMS_OUTPUT.put_line('FORMAT_ERROR_STACK : ' ||
+                                   LOG_ROWTYPE.FORMAT_ERROR_STACK);
+                DBMS_OUTPUT.put_line('------------------------------------------------------------------');
+              DBMS_OUTPUT.put_line(' FORMAT_ERROR_BACKTRACE : ' ||
+                                   LOG_ROWTYPE.FORMAT_ERROR_BACKTRACE);
+              DBMS_OUTPUT.put_line('------------------------------------------------------------------');
+              DBMS_OUTPUT.put_line('User : ' || LOG_ROWTYPE.CREATED_BY);
+              DBMS_OUTPUT.put_line('DATE : ' || LOG_ROWTYPE.LOG_date);
+            ELSE
+              DBMS_OUTPUT.put_line('------------------------------------------------------------------');
+              DBMS_OUTPUT.put_line('Invalid Test id');
+
+            END IF;
+
+    CLOSE PLSQL_C;
+
+  END   DISPLAY_LOG;
+
+  PROCEDURE DISPLAY_LOG(P_Log_name IN Varchar2 default null , p_checked in char default Null)
+    is 
+    CURSOR PLSQL_C IS
+                  SELECT *
+                  FROM PLSQL_LOG cut
+                  WHERE upper(CUT.LOG_name) = upper(nvl(P_Log_name,CUT.LOG_name))                         
+                   and cut.value_checked = nvl(decode (upper(p_checked),'YES','Y','NO','N','TRUE','Y','FALSE','N',upper(p_checked)),cut.value_checked)
+                   and cut.created_by=user ;
+  BEGIN
+     
+    For ldx in  PLSQL_C loop 
+        DISPLAY_LOG(ldx.log_id);
+      end loop ;
+   end DISPLAY_LOG;
+  
+  
+  PROCEDURE Mark_LOG (P_Log_name IN  Varchar2 default 'UNNAMED')
+    is 
+  BEGIN
+    Update PLSQL_LOG
+     set value_checked ='Y'
+     Where upper(log_name)=upper(P_Log_name);
+  END Mark_LOG;
+  
+
+
+
+  FUNCTION BOOLEAN_CONVERTOR(P_INT IN INTEGER )  RETURN BOOLEAN  IS
+  BEGIN
+  /*
+  RETURN BOOLEAN
+  0 =  FALSE
+  1 = TRUE
+ */
+ RETURN sys.diutil.int_to_bool(P_INT);
+
+  END BOOLEAN_CONVERTOR;
+
+  FUNCTION BOOLEAN_CONVERTOR(P_BOOL IN BOOLEAN )  RETURN INTEGER  IS
+  BEGIN
+
+   /*
+  RETURN  INTEGER
+  0 =  FALSE
+  1 = TRUE
+ */
+ RETURN sys.diutil.bool_to_int(P_bool);
+
+  END BOOLEAN_CONVERTOR;
+
+  
+  FUNCTION FORMAT_CALL_STACK RETURN VARCHAR2 IS
+  /*FORMAT_CALL_STACK*/
+  BEGIN
+    RETURN DBMS_UTILITY.FORMAT_CALL_STACK;
+  END   FORMAT_CALL_STACK ;
+
+
+  FUNCTION  FORMAT_ERROR_STACK RETURN VARCHAR2 is
+     /*FORMAT_ERROR_STACK*/
+  begin
+    return DBMS_UTILITY.FORMAT_ERROR_STACK;
+  end   FORMAT_ERROR_STACK;
+
+
+  FUNCTION FORMAT_ERROR_BACKTRACE  RETURN VARCHAR2 is
+  /*FORMAT_BACKTRACE_STACK*/
+  begin
+    return DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+  end   FORMAT_ERROR_BACKTRACE;
+
+
+END UT_PLSQL ;
+/

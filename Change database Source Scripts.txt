@@ -1,0 +1,22 @@
+PROCEDURE src_update 
+	(owner_in IN VARCHAR2, program_in IN VARCHAR2, 
+	 old_str_in IN VARCHAR2, new_str_in IN VARCHAR2)
+IS
+	/* Cursor uses all_objects since this is run from SYS */
+	CURSOR obj_cur IS
+		SELECT object_id 
+		  FROM all_objects
+		 WHERE owner = owner_in
+			AND object_name = program_in;
+	obj_rec obj_cur%ROWTYPE;
+BEGIN
+	OPEN obj_cur; 
+	FETCH obj_cur INTO obj_rec;
+	IF obj_cur%FOUND
+	THEN
+		UPDATE SOURCE$
+			SET source = REPLACE (source, old_str_in, new_str_in)
+		 WHERE obj# = obj_rec.object_id;
+	END IF;
+	CLOSE obj_cur;
+END;

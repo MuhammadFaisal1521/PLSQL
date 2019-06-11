@@ -1,0 +1,3 @@
+select 'l'||COLUMN_NAME||'        '||TABLE_NAME||'.'||COLUMN_NAME||'%TYPE;'
+from all_tab_cols
+where TABLE_NAME='TGC_EMP_ATTENDANCE_APPROVAL'

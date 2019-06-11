@@ -1,0 +1,37 @@
+CREATE OR REPLACE TYPE my_tab_t AS TABLE OF VARCHAR2(30);
+/
+CREATE TABLE nested_table (id NUMBER, col1 my_tab_t)
+       NESTED TABLE col1 STORE AS col1_tab;
+
+INSERT INTO nested_table VALUES (1, my_tab_t('A'));
+INSERT INTO nested_table VALUES (2, my_tab_t('B', 'C'));
+INSERT INTO nested_table VALUES (3, my_tab_t('D', 'E', 'F'));
+COMMIT;
+
+SELECT * FROM nested_table;
+
+SELECT id, COLUMN_VALUE FROM nested_table t1, TABLE(t1.col1) t2;
+
+
+
+CREATE TYPE address_t AS OBJECT (
+   street  VARCHAR2(30),
+   city    VARCHAR2(20),
+   state   CHAR(2),
+   zip     CHAR(5) );
+/
+CREATE TYPE address_tab IS TABLE OF address_t;
+/
+CREATE TABLE customers (
+   custid  NUMBER,
+   address address_tab )
+NESTED TABLE address STORE AS customer_addresses;
+
+INSERT INTO customers VALUES (1,
+            address_tab(
+              address_t('101 First', 'Redwood Shores', 'CA', '94065'),
+              address_t('123 Maple', 'Mill Valley',    'CA', '90952')
+            )                );
+
+
+

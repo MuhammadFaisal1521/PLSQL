@@ -1,0 +1,19 @@
+Declare 
+--add object  name in default 
+l_object_name varchar2(200) default 'TABLE_NAME';
+Cursor l_session_cur 
+                   is 
+        SELECT vs.*
+          FROM all_objects ao, V$LOCK lk, v$session vs
+         WHERE     UPPER (object_name) = UPPER (l_object_name)
+               AND id1 = object_id
+               AND vs.sid = lk.sid;
+BEGIN
+  FOR r IN  l_session_cur
+  LOOP
+    EXECUTE IMMEDIATE 'alter system kill session ''' || r.sid  || ',' || r.serial# || '''';
+  END LOOP;
+  
+END;
+
+ 

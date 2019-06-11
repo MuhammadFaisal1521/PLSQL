@@ -1,0 +1,15 @@
+Create Type Loop_Type is table of Varchar2(400)
+
+
+Create or Replace Function  Find_Loop_F (P_End_loop in NUmber Default 10) Return Loop_Type PIPELINED
+Is
+    begin 
+        For  op in  1..P_End_loop loop 
+            Pipe row  (op);
+            Pipe row  ('Value' );
+        end loop;
+        --Return;
+end;
+
+
+select * from (Table (Find_Loop_F(200)))

@@ -1,0 +1,35 @@
+Declare
+
+Type tt is table of Number  index by pls_integer;
+aa tt;
+
+Function  isExists (p_Loop_End Number, p_value Number) Return Boolean
+    is 
+    begin 
+                for ldx in 1..p_loop_end Loop
+                        if aa(ldx) = p_value then 
+                        return True;
+                        end if;
+                end loop;
+                
+            return False;
+    end;
+
+begin
+
+aa(1):=1;
+aa(2):=20; 
+aa(3):=30; 
+aa(4):=1;
+aa(5):=30;
+aa(6):=31;
+For ldx in 1..aa.count loop 
+      
+        
+        if Not isExists(ldx-1,aa(ldx)) or ldx = 1then 
+        dbms_output.put_line(aa(ldx));
+        end if;
+end loop;
+
+
+end;

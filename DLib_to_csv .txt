@@ -1,0 +1,393 @@
+create or replace package DLib_to_csv 
+AUTHID CURRENT_USER 
+is 
+/******************************************************************** 
+** 
+** Autor: Edgar Corona 
+** Date: 14/03/2017 
+** Version: 1 
+** 
+********************************************************************* 
+Example 
+declare 
+   vcurrow integer; 
+  begin 
+   DLib_to_csv.querytosheet( 'select sysdate FECHA, ''texto'' texto, level CLIENTE, level*2 from dual connect by level <= 20 order by 1', 
+                              p_delimitedby => '';'', 
+                              p_column_headers => true, 
+                              p_currentrow => vcurrow, 
+                              p_numFmt => DLib_to_xls.get_numFmt( DLib_to_xls.orafmtexcel( '#.##0,00' ) ), 
+                              p_dateFmt => DLib_to_xls.get_numFmt( DLib_to_xls.orafmtexcel( 'dd/mon/yyyy' ) )); 
+   DLib_to_xls.save( 'DIR', 'Example2.cls' ); 
+ end; 
+ *********************************************************************/ 
+ -- 
+ l_endofline constant char(1) := chr(10); 
+ l_endoffile constant char(1) := chr(13); 
+ t_bulk_size constant pls_integer := 500; 
+ -- 
+ procedure queryTocsv ( p_sql varchar2, p_column_headers boolean := true, p_directory varchar2 := null, 
+                        p_filename varchar2 := null, p_delimitedby CHAR := ';', p_currentrow OUT pls_integer, 
+                        p_numFmt varchar2 := '.,', p_dateFmt varchar2 := 'long'); 
+ /* dateFmt 
+   long 
+   short 
+  * numFmt 
+   ,. 
+   ., 
+ */ 
+ end; 
+
+
+
+
+/******************************************************************************************************/
+create or replace package body DLib_to_csv
+is
+--
+  vdelimitedby char := null;
+  vformatd varchar2(5) := 'long';
+  vformatn varchar2(2) := '.,';
+  vmaxlong pls_integer;
+  idindex pls_integer;
+  t_fix constant number(1):=1;
+  type tp_line is record (line clob);
+  type tp_outfile is table of tp_line index by pls_integer;
+  type tp_value is record ( valueis varchar2(32767 char),
+                            valuein number(36,3),
+                            type number(3),
+                            style varchar2(50));
+  type tp_field is table of tp_value index by pls_integer;
+  type tp_rows is record ( id pls_integer,
+                           field tp_field);
+  type tp_workfile is table of tp_rows index by pls_integer;
+  workfile tp_workfile;
+  outputfile tp_outfile;
+--
+ function to_format (p_value date) return varchar2
+  is
+  --
+  begin
+     return case vformatd 
+            when 'long'
+            then
+              rtrim( to_char(p_value,'dd "de" Month') )||to_char(p_value,'" del" yyyy')
+            when 'short'
+            then
+              to_char(p_value,'dd/mm/yyyy')
+            else
+              to_char(p_value,'dd-mmm-yyyy')
+            end;
+  end;
+--
+ function to_format (p_value number) return varchar2
+  is
+  --
+  begin
+     return case vformatn 
+            when '.,'
+            then
+              to_char( p_value, 'TM9', 'NLS_NUMERIC_CHARACTERS=.,' )
+            when ',.'
+            then
+              to_char( p_value, 'TM9', 'NLS_NUMERIC_CHARACTERS=,.' )
+            else
+              to_char( p_value )
+            end;
+  end;
+--
+  procedure clear_workfile
+  is
+  --
+  begin
+      --inner
+      for indx in 1 .. workfile.count()
+      loop
+         workfile(indx).field.delete;
+      end loop;
+      --
+      workfile.delete;
+  end;
+--
+ function new_row return pls_integer
+  is
+  begin
+    return workfile.count() + 1;
+  end;
+--
+ function current_row return pls_integer
+  is
+  begin
+    return nvl( nullif(workfile.count(),0), new_row);
+  end;  
+--
+ function new_data (p_row pls_integer) return pls_integer
+  is
+   t_cnt pls_integer;
+  begin
+    if workfile.exists( p_row )
+    then
+      t_cnt := workfile(p_row).field.count()+1;
+    else
+      t_cnt := t_fix;  
+    end if;
+    return t_cnt;
+  end;
+--
+ procedure add_value (p_value varchar2, p_typeval number, p_style varchar2 := null, p_row pls_integer := current_row)
+ is
+ --
+ indx_data pls_integer := new_data(p_row);
+ begin
+    --
+      workfile(p_row).id := indx_data;
+      workfile(p_row).field(indx_data).valueis := p_value;
+      workfile(p_row).field(indx_data).type := p_typeval;
+      workfile(p_row).field(indx_data).style := p_style;
+    --
+ end add_value;
+ --
+ procedure add_value (p_value number, p_typeval number, p_style varchar2 := null, p_row pls_integer := current_row)
+ is
+ --
+ indx_data pls_integer := new_data(p_row);
+ begin
+    --
+      workfile(p_row).id := indx_data;
+      workfile(p_row).field(indx_data).valuein := p_value;
+      workfile(p_row).field(indx_data).type := p_typeval;
+      workfile(p_row).field(indx_data).style := p_style;
+    --
+ end add_value;
+--
+ procedure add_value (p_value date, p_typeval number, p_style varchar2 := null, p_row pls_integer := current_row)
+ is
+ --
+ indx_data pls_integer := new_data(p_row);
+ begin
+    --
+      workfile(p_row).id := indx_data;
+      workfile(p_row).field(indx_data).valuein := to_char(p_value,'j');
+      workfile(p_row).field(indx_data).type := p_typeval;
+      workfile(p_row).field(indx_data).style := p_style;
+    --
+ end add_value;
+--
+ function finish return clob
+ is
+    t_str varchar2(32767 char);
+    t_col varchar2(32767 char);
+    t_col_cant pls_integer;
+    t_buil clob;
+ begin
+    --
+    for idx_rows in 1 .. workfile.count()
+    loop
+       t_col_cant := workfile(idx_rows).field.count();
+       for idx_field in 1 .. workfile(idx_rows).field.count()
+       loop
+         if workfile(idx_rows).field(idx_field).type in ( 2, 100, 101 ) --type number 
+         then
+           t_str := t_str||concat( to_format( workfile(idx_rows).field(idx_field).valuein),
+                                     case when t_col_cant != idx_field then vdelimitedby else null end);
+         elsif workfile(idx_rows).field(idx_field).type in ( 12, 178, 179, 180, 181 , 231 ) --type date
+         then
+           t_str := t_str||concat( to_format( to_date(workfile(idx_rows).field(idx_field).valuein,'j') ),
+                                     case when t_col_cant != idx_field then vdelimitedby else null end);
+         elsif workfile(idx_rows).field(idx_field).type in ( 1, 8, 9, 96, 112 ) -- type varchar
+         then
+           t_str := t_str||concat( workfile(idx_rows).field(idx_field).valueis,
+                                     case when t_col_cant != idx_field then vdelimitedby else null end);
+         end if;
+       end loop;
+       --
+       t_buil := t_buil||t_str||l_endofline;
+       t_str := null;
+       --
+    end loop;
+     t_buil := t_buil||chr(13);
+    clear_workfile;
+    return t_buil;    
+  end finish;
+--
+ procedure clobTofile (p_clob clob, p_directory varchar2 := 'DIR_CSV',
+                       p_filename varchar2 := 'file'||userenv('SESSIONID')||to_char(systimestamp,'ddmmyyyyhh24miss')||'.csv')
+  IS
+    t_clob clob := p_clob;
+    t_fh utl_file.file_type;
+    amount pls_integer := 32767;
+    offset integer := 1;
+    l_leng    pls_integer := 32767;
+    l_fileleng number := dbms_lob.getlength(p_clob);
+    lc_buffer varchar2(32767);
+    lberr_29285 exception;
+    pragma EXCEPTION_INIT (lberr_29285, -29285);
+  begin
+    t_fh := utl_file.fopen( p_directory, p_filename, 'w', l_leng);
+    begin
+      if ( dbms_lob.isopen(t_clob) != 1 )
+      then
+        dbms_lob.open(t_clob, 0);
+      end if;
+      --
+      case when l_fileleng >= l_leng
+           then
+           --
+           loop
+               amount := instr(dbms_lob.substr( t_clob, l_leng, offset), l_endofline, -1);
+               exit when nvl(amount,0) = 0;
+               lc_buffer := dbms_lob.substr( t_clob, amount, offset);
+               utl_file.put_line( t_fh, lc_buffer);
+               offset := offset + amount;
+           end loop;
+      else
+        utl_file.put_line( t_fh, dbms_lob.substr( t_clob, l_fileleng, offset));        
+      end case;
+      if ( dbms_lob.isopen(t_clob) = 1 ) then
+           dbms_lob.close(t_clob);
+      end if;
+    exception
+      when lberr_29285 then
+        dbms_output.put_line('Error :Error de escritura en el archivo archivo destino');
+      raise;
+      when others then
+         dbms_output.put_line('Error : '||sqlerrm);
+         raise;
+    end printout;
+    utl_file.fclose( t_fh );
+  end;
+--
+ procedure save ( p_directory varchar2, p_filename varchar2)
+  is
+  begin
+    clobTofile( finish, p_directory, p_filename );
+  end save;
+--
+ procedure queryTocsv ( p_sql varchar2, p_column_headers boolean := true, p_directory varchar2 := null,
+                        p_filename varchar2 := null, p_delimitedby CHAR := ';', p_currentrow OUT pls_integer,
+                        p_numFmt varchar2 := '.,', p_dateFmt varchar2 := 'long')
+   is
+   --
+    t_cursor integer;
+    t_col_cnt integer;
+    t_desc_tab dbms_sql.desc_tab2;
+    d_tab dbms_sql.date_table;
+    n_tab dbms_sql.number_table;
+    v_tab dbms_sql.varchar2_table;
+    t_row integer;
+    t_cur_row pls_integer;
+  begin
+    vformatd := p_DateFmt; vformatn := p_numFmt;
+    --
+    t_cursor := dbms_sql.open_cursor;
+    dbms_sql.parse( t_cursor, p_sql, dbms_sql.native );
+    dbms_sql.describe_columns2( t_cursor, t_col_cnt, t_desc_tab );
+    --
+    for indx in 1 .. t_col_cnt  -- define data and put headers
+    loop
+      if p_column_headers
+      then
+        add_value (p_value => t_desc_tab( indx ).col_name, p_typeval => 1,
+                   p_style => '0', p_row => current_row);
+      end if;
+      case
+        when t_desc_tab( indx ).col_type in ( 2, 100, 101 )
+        then
+          dbms_sql.define_array( t_cursor, indx, n_tab, t_bulk_size, 1 ); --define number 
+        when t_desc_tab( indx ).col_type in ( 12, 178, 179, 180, 181 , 231 )
+        then
+          dbms_sql.define_array( t_cursor, indx, d_tab, t_bulk_size, 1 ); --define date
+        when t_desc_tab( indx ).col_type in ( 1, 8, 9, 96, 112 )
+        then
+          dbms_sql.define_array( t_cursor, indx, v_tab, t_bulk_size, 1 ); --define varchar
+        else
+          null;
+      end case;
+    end loop;
+--
+    t_cur_row := case when p_column_headers then new_row else current_row end;
+--
+    t_row := dbms_sql.execute( t_cursor );
+    p_currentrow := t_row;
+    loop
+      t_row := dbms_sql.fetch_rows( t_cursor );
+      if t_row > 0
+      then
+        for indx in 1 .. t_col_cnt
+        loop
+          case
+            when t_desc_tab( indx ).col_type in ( 2, 100, 101 ) --type number 
+            then
+              dbms_sql.column_value( t_cursor, indx, n_tab );
+              for i in 0 .. t_row - 1
+              loop
+                if n_tab( i + n_tab.first() ) is not null
+                then
+                  add_value (p_value => n_tab( i + n_tab.first() ), p_typeval => t_desc_tab( indx ).col_type,
+                             p_style => '0', p_row => t_cur_row+i);
+                end if;
+              end loop;
+              n_tab.delete;
+            when t_desc_tab( indx ).col_type in ( 12, 178, 179, 180, 181 , 231 ) --type date 
+            then
+              dbms_sql.column_value( t_cursor, indx, d_tab );
+              for i in 0 .. t_row - 1
+              loop
+                if d_tab( i + d_tab.first() ) is not null 
+                then
+                  add_value (p_value => d_tab( i + d_tab.first() ), p_typeval => t_desc_tab( indx ).col_type,
+                             p_style => '0', p_row => t_cur_row+i);
+                end if;
+              end loop;
+              d_tab.delete;
+            when t_desc_tab( indx ).col_type in ( 1, 8, 9, 96, 112 ) -- type varchar
+            then
+              dbms_sql.column_value( t_cursor, indx, v_tab );
+              for i in 0 .. t_row - 1
+              loop
+                if v_tab( i + v_tab.first() ) is not null
+                then
+                  add_value (p_value => v_tab( i + v_tab.first() ), p_typeval => t_desc_tab( indx ).col_type,
+                             p_style => '0', p_row => t_cur_row+i);
+                end if;
+              end loop;
+              v_tab.delete;
+            else
+              null;
+          end case;
+        end loop;
+      end if;
+      exit when t_row != t_bulk_size;
+      t_cur_row := t_cur_row + t_row;
+    end loop;
+    dbms_sql.close_cursor( t_cursor );
+    if ( p_directory is not null and  p_filename is not null )
+    then
+      vDelimitedby := p_delimitedby;
+      save( p_directory, p_filename );
+    end if;
+   -- 
+   exception
+    when others
+    then
+     clear_workfile;
+     add_value (p_value => 'Error: DPll-ORA-00936 statement sql not is valid / '||sqlerrm, p_typeval => 9,
+                           p_style => '0', p_row => new_row);
+     save( p_directory, p_filename );
+     if dbms_sql.is_open( t_cursor )
+     then
+       dbms_sql.close_cursor( t_cursor );
+     end if;
+     raise;
+  end queryTocsv;
+end;
+
+
+/*******************************************************************************************************/
+
+declare 
+pp pls_integer;
+begin 
+    --D is my directory  , i created use create directory , query select * from user_directories
+ dlib_to_csv.queryTocsv(    p_sql => 'select * from user$', p_column_headers => true, p_directory =>'D', p_filename => 'AA.csv', p_delimitedby => ',', p_currentrow =>pp,p_numFmt => '.,', p_dateFmt => 'long');
+end;

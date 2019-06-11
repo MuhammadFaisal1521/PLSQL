@@ -1,0 +1,12 @@
+SELECT TO_CHAR (created, 'dd-mon-yyyy hh24:mi:ss'),
+       TRUNC (SYSDATE - created) "Dy",
+       TRUNC (MOD ( (SYSDATE - created) * 24, 24)) "Hr",
+       TRUNC (MOD ( (SYSDATE - created) * 24 * 60, 60)) "Mi",
+       TRUNC (MOD ( (SYSDATE - created) * 24 * 60 * 60, 60)) "Sec",
+       TO_CHAR (SYSDATE, 'dd-mon-yyyy hh24:mi:ss'),
+       SYSDATE - created "Tdy",
+       (SYSDATE - created) * 24 "Thr",
+       (SYSDATE - created) * 24 * 60 "Tmi",
+       (SYSDATE - created) * 24 * 60 * 60 "Tsec"
+  FROM all_users
+ WHERE ROWNUM < 50

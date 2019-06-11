@@ -1,0 +1,96 @@
+declare
+    l_docClob CLOB;
+    --whole doc
+    l_xmlDoc dbms_xmldom.domdocument;
+    l_xmlDocNode dbms_xmldom.domnode;
+    l_wholeDoc dbms_xmldom.domnode;
+    
+    --root element
+    l_employeeElement dbms_xmldom.domelement;
+    l_employeeElementNode dbms_xmldom.domnode;
+    
+    --name
+    l_nameElement dbms_xmldom.domelement;
+    l_nameElementNode dbms_xmldom.domnode;
+    --inner text
+    l_nameText dbms_xmldom.domtext;
+    l_nameTextNode dbms_xmldom.domnode;
+    
+    --reusable node when appending child(s)
+    l_childNode dbms_xmldom.domnode;
+    
+begin
+    
+    --initialise the document
+    l_xmlDoc := dbms_xmldom.newDOMDocument();
+    dbms_xmldom.setVersion(l_xmlDoc, '1.0');
+    dbms_xmldom.setcharset(l_xmlDoc, 'UTF-8');
+    
+    --convert it to a node. everything needs to be a node eventually
+    l_xmlDocNode := dbms_xmldom.makenode(
+        doc => l_xmlDoc
+    );
+    
+    --make a new root element containing employee information
+    l_employeeElement := dbms_xmldom.createelement(
+        doc => l_xmlDoc,
+        tagName => 'employee'
+    );
+    
+    --convert it to a node
+    l_employeeElementNode := dbms_xmldom.makenode(
+        elem => l_employeeElement
+    );
+    
+    --make a name element
+    l_nameElement := dbms_xmldom.createelement(
+        doc => l_xmlDoc,
+        tagName => 'name'
+    );
+    
+    --convert it to a node
+    l_nameElementNode := dbms_xmldom.makenode(
+        elem => l_nameElement
+    );
+    
+    --make the text element (for name)
+    l_nameText := dbms_xmldom.createtextnode(
+        doc => l_xmlDoc,
+        data => HTF.ESCAPE_SC ( 'John Rogerson' )
+    );
+    
+    --convert it to a node
+    l_nameTextNode := dbms_xmldom.makenode(
+        t => l_nameText
+    );
+    
+    --add the name text to the name element
+    l_childNode := dbms_xmldom.appendchild(
+        n => l_nameElementNode,
+        newchild => l_nameTextNode
+    );
+    
+    --add the name node to the employee node
+    l_childNode := dbms_xmldom.appendchild(
+        n => l_employeeElementNode,
+        newchild => l_nameElementNode
+    );
+    
+    
+    --append the employee element to the document
+    l_wholeDoc := dbms_xmldom.appendchild(
+        n => l_xmlDocNode,
+        newchild => l_employeeElementNode
+    );
+    
+    --print the xml
+    dbms_lob.createtemporary(l_docClob, false);
+    dbms_xmldom.writetoclob(
+        doc => l_xmlDoc,
+        cl => l_docClob
+    );
+    
+    dbms_output.put_line(l_docClob);
+
+
+end;

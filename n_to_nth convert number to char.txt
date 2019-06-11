@@ -1,0 +1,76 @@
+CREATE OR REPLACE PACKAGE n_to_nth
+IS
+   FUNCTION n_to_nth (n_in IN NUMBER)
+      RETURN VARCHAR2;
+
+   /* Alias for n_to_nth */
+   FUNCTION nth_from_n (n_in IN NUMBER)
+      RETURN VARCHAR2;
+
+   /* Convert day of month to word */
+   FUNCTION dd_to_nth (dd_in IN NUMBER)
+      RETURN VARCHAR2;
+
+END;
+
+
+/*****************************************************************************************/
+
+
+CREATE OR REPLACE PACKAGE BODY n_to_nth
+IS
+   /* Utilize date functions to conver "1" to "1st" and first" etc. */
+
+   FUNCTION n_to_nth (n_in IN NUMBER)
+      RETURN VARCHAR2
+   IS
+   BEGIN
+      RETURN CASE
+                WHEN n_in IS NULL
+                THEN
+                   NULL
+                WHEN n_in = 0
+                THEN
+                   NULL
+                ELSE
+                   LOWER (
+                      TO_CHAR (TO_DATE ('1-1-' || n_in, 'dd-mm-yyyy'),
+                               'FMYYYYth'))
+             END;
+   END;
+
+   FUNCTION nth_from_n (n_in IN NUMBER)
+      RETURN VARCHAR2
+   IS
+   BEGIN
+      RETURN n_to_nth (n_in);
+   END;
+   
+   FUNCTION dd_to_nth (dd_in IN NUMBER)
+      RETURN VARCHAR2
+   IS
+   BEGIN
+      RETURN CASE
+                WHEN dd_in IS NULL
+                THEN
+                   NULL
+                ELSE
+                   LOWER (
+                      TO_CHAR (
+                         TO_DATE ('2010-01-' || LPAD (dd_in, 2, '0'),
+                                  'YYYY-MM-DD'),
+                         'DDSPth'))
+             END;
+   END;
+END;
+
+/*******************************************************************************/
+BEGIN
+   DBMS_OUTPUT.put_line (n_to_nth.n_to_nth (1));
+   DBMS_OUTPUT.put_line (n_to_nth.n_to_nth (3));
+   DBMS_OUTPUT.put_line (n_to_nth.n_to_nth (100));
+   DBMS_OUTPUT.put_line (n_to_nth.dd_to_nth (1));
+   DBMS_OUTPUT.put_line (n_to_nth.dd_to_nth (3));
+   DBMS_OUTPUT.put_line (n_to_nth.dd_to_nth (27));
+   DBMS_OUTPUT.put_line (INITCAP (n_to_nth.dd_to_nth (27)));
+END;

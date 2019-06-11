@@ -1,0 +1,8 @@
+(select ' :GLOBAL.old_'||Column_name||':= get_item_property('||''''||table_name||'.'||Column_name||''', DATABASE_VALUE);'||chr(13)
+          ||':GLOBAL.new_'||Column_name||':=:'||table_name||'.'||Column_name||';'||chr(13)
+          ||':'||table_name||'.'||Column_name||' := :GLOBAL.old_'||Column_name||';'||chr(13) COn
+from all_tab_columns
+where Table_name='TGC_PRODUCTION_NOTE'
+AND COLUMN_NAME LIKE 'ATTRIBUTE%'
+ORDER BY COLUMN_ID
+)

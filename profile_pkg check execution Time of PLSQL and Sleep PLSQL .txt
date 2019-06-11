@@ -1,0 +1,108 @@
+create or replace package profile_pkg as
+
+  procedure init_;
+  
+  procedure start_(p_name varchar2 default 'NoName');
+  
+  procedure stop_(p_name varchar2 default 'NoName');
+  
+  procedure show_unit(p_name varchar2 default 'NoName');
+  
+  procedure show_;
+  
+  procedure sleep(p_second int);
+  
+end profile_pkg;
+
+
+
+
+create or replace package body profile_pkg as
+  
+  type g_profile_rec_type is record (
+    start_time timestamp,
+    end_time   timestamp
+  );
+
+  type g_profile_tbl_type is table of g_profile_rec_type;
+
+  type g_profile_unit_tbl_type is table of g_profile_tbl_type index by varchar2(128);
+  
+  g_profile_units g_profile_unit_tbl_type; 
+
+  procedure init_ is
+  begin
+    g_profile_units.delete;
+  end init_;
+  
+  procedure start_(p_name varchar2 default 'NoName') is
+  begin
+    if not g_profile_units.exists(p_name) then
+      g_profile_units(p_name) := g_profile_tbl_type();
+    end if;
+    --
+    g_profile_units(p_name).extend;
+    g_profile_units(p_name)(g_profile_units(p_name).count).start_time := current_timestamp;
+    --
+  end start_;
+  
+  procedure stop_(p_name varchar2 default 'NoName') is
+  begin    
+    if not g_profile_units.exists(p_name) then
+      dbms_output.put_line('Unit ' || p_name || ' is not found profile.');
+    end if;
+    --
+    g_profile_units(p_name)(g_profile_units(p_name).count).end_time := current_timestamp;
+  end stop_;
+  
+  procedure show_unit(p_name varchar2 default 'NoName') is
+  begin
+    if not g_profile_units.exists(p_name) then
+      dbms_output.put_line('Unit ' || p_name || ' is not run profile.');
+    end if;
+    --
+    dbms_output.put_line('Profile unit ' || p_name || ':');
+    for i in 1..g_profile_units(p_name).count loop
+      dbms_output.put_line(
+        '  start: ' || g_profile_units(p_name)(i).start_time ||
+        ', end: ' ||  g_profile_units(p_name)(i).end_time    ||
+        ', elapsed: ' || regexp_substr(
+          g_profile_units(p_name)(i).end_time - 
+            g_profile_units(p_name)(i).start_time,  
+          '([1-9][0-9:]*|0)\.\d{3}'
+        ) || ' seconds' 
+      );
+    end loop;
+  end show_unit;
+  
+  procedure show_ is
+    l_unit varchar2(128);
+  begin
+    l_unit := g_profile_units.first();
+    while l_unit is not null loop
+      show_unit(l_unit);
+      l_unit := g_profile_units.next(l_unit);
+    end loop; 
+  end show_;
+  
+  procedure sleep(p_second int) is
+    l_start date := sysdate;
+  begin
+    while sysdate - l_start < (p_second/24/60/60) loop
+      null;
+    end loop;
+  end sleep;
+  
+end profile_pkg;
+
+
+
+
+
+begin
+  profile_pkg.start_;
+  profile_pkg.sleep(5);
+  profile_pkg.stop_;
+  profile_pkg.show_;
+  
+end;

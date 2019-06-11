@@ -1,0 +1,89 @@
+create or replace procedure unwrap(aname VARCHAR2)
+is
+    root sys.pidl.ptnod;
+    status   sys.pidl.ub4;
+    a_unit_b sys.pidl.ptnod;
+    a_d sys.pidl.ptnod;
+    a_header sys.pidl.ptnod;
+    a_block sys.pidl.ptnod;
+    di_proc varchar2(32);
+    as_p sys.pidl.ptnod;
+    param_list sys.pidl.ptnod;
+begin
+
+	dbms_output.put_line('Start up');
+	sys.diutil.get_diana(
+		aname, NULL, NULL,
+		NULL, status, root,
+		1);
+	
+	if (status <> sys.diutil.s_ok) then
+		sys.dbms_output.put_line('Error: couldn''t find diana; status:  ' ||
+                           to_char(status));
+		raise sys.diutil.e_subpNotFound;
+	end if;
+	-- 
+	-- get the root node
+	--
+	dbms_output.put_line('Root Node :'||root);
+	dbms_output.put_line('Root code (hex) :'||pidl.ptkin(root));
+	dbms_output.put_line('Root Type :'||pidl.ptattnnm(pidl.ptkin(root)));
+	dbms_output.put_line('--');
+	--
+	-- get the DIANA for the body
+	--
+	a_unit_b := diana.a_unit_b(root);
+	dbms_output.put_line('A_UNIT_B Node :'||a_unit_b);
+	dbms_output.put_line('A_UNIT_B Type :'||pidl.ptattnnm(pidl.ptkin(a_unit_b)));
+	dbms_output.put_line('A_UNIT_B code (hex) :'||pidl.ptkin(a_unit_b));
+	dbms_output.put_line('--');
+	--
+	-- get the DIANA for the procedure name, parameters and block
+	--
+	a_d := diana.a_d_(a_unit_b);
+	dbms_output.put_line('A_D_ Node :'||a_d);
+	dbms_output.put_line('A_D_ Type :'||pidl.ptattnnm(pidl.ptkin(a_d)));
+	dbms_output.put_line('A_D_ code (hex) :'||pidl.ptkin(a_d));
+	dbms_output.put_line('--');
+  	a_header := diana.a_header(a_unit_b);
+	dbms_output.put_line('A_HEADER Node :'||a_header);
+	dbms_output.put_line('A_HEADER Type :'||pidl.ptattnnm(pidl.ptkin(a_header)));
+	dbms_output.put_line('A_HEADER code (hex) :'||pidl.ptkin(a_header));
+	dbms_output.put_line('--');
+  	a_block := diana.a_block_(a_unit_b);
+	dbms_output.put_line('A_BLOCK Node :'||a_block);
+	dbms_output.put_line('A_BLOCK Type :'||pidl.ptattnnm(pidl.ptkin(a_block)));
+	dbms_output.put_line('A_BLOCK code (hex) :'||pidl.ptkin(a_block));  	
+	dbms_output.put_line('--');
+	--
+	-- read the symbol name for the procedure
+	--
+	di_proc := diana.l_symrep(a_d);
+	dbms_output.put_line('L_SYMREP :'||di_proc);
+	--
+	-- get parameters
+	-- PD5(4) : D_P_: [
+  	-- SRCPOS: row 1 col 1
+  	-- AS_P_: PD6(4) : DS_PARAM: [...]
+  	-- S_OPERAT: ra: '0'
+  	-- A_P_IFC: <null node>
+  	-- A_UP: PD3(4) : <reference to D_S_BODY (262147)>
+	-- ]
+	-- PD6(4) : DS_PARAM: [
+	--   SRCPOS: row 1 col 1
+  	-- AS_LIST: <null sequence>
+	-- ]
+	--
+	as_p := diana.as_p_(a_header);
+	dbms_output.put_line('AS_P Node :'||as_p);
+	dbms_output.put_line('AS_P Type :'||pidl.ptattnnm(pidl.ptkin(as_p)));
+	dbms_output.put_line('AS_P code (hex) :'||pidl.ptkin(as_p));  	
+	dbms_output.put_line('--');
+	param_list := diana.as_list(as_p);
+	dbms_output.put_line('AS_LIST Node :'||param_list);
+	dbms_output.put_line('AS_LIST Type :'||pidl.ptattnnm(pidl.ptkin(param_list)));
+	dbms_output.put_line('AS_LIST code (hex) :'||pidl.ptkin(param_list));  	
+	dbms_output.put_line('--');
+	--
+end unwrap;
+/ 

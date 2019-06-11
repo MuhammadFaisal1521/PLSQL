@@ -1,0 +1,58 @@
+create table t (
+  x int
+);
+insert into t 
+  select rownum x from dual
+  connect by level <= 10;
+
+commit;
+
+create or replace context ctx using ctx_api;
+
+create or replace package ctx_api as
+
+  procedure set_filter(val in varchar2);
+  
+end ctx_api;
+/
+
+create or replace package body ctx_api is
+
+  procedure set_filter(val in varchar2) is
+  begin
+    dbms_session.set_context('CTX', 'filter', val);
+  end set_filter;
+
+end ctx_api;
+/
+
+create or replace view vw as 
+  select * from t
+  where  x = sys_context('CTX', 'filter');
+  
+exec ctx_api.set_filter(1);
+
+select * from vw;
+
+X  
+1  
+
+exec ctx_api.set_filter(2);
+
+select * from vw;
+
+X  
+2  
+
+
+
+create global temporary table tmp (
+  x int
+);
+
+create or replace view vw as 
+  select * from t
+  where  t.x = (select tmp.x from tmp);
+  
+insert into tmp values (3);
+select * from vw;

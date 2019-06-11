@@ -1,0 +1,98 @@
+CREATE OR REPLACE PACKAGE APPS."UT_PLSQL"
+
+ IS
+/*
+---------  Documentation Comments ---------
+
+ Project      : Programming School
+ Name         : File Name
+ version      : 1.0
+ Author       : Falick Faisal
+ Contact      : www.falickfaisal.com
+ Date         : 06-Apr-2018
+
+Copyright ? 2018 by Programming School.
+
+All rights reserved. No portion of this Code may be reproduced in any
+form without permission from the Programming School,
+For permissions contact US.
+
+---------  Functional Comments ---------
+
+ 1) Require to Trace Execution of PLSQL Process
+ 2) Error Stack
+ 3) Boolean Expression
+ 4) XOR development on the base of Operator Overloading
+ 5) Read / Write log file in  I/O (pending)
+
+
+---------  Code Comments ---------
+
+  1) Rollback / Commit is require for all transaction
+  2) For get lastest version
+        Contact : FalickFaisal@gmail.com
+
+
+
+------------------------------------------------------Run Scripts
+Drop table PLSQL_LOG;
+
+CREATE TABLE PLSQL_LOG
+( LOG_ID                  NUMBER,
+  LOG_DATE                DATE,
+  CREATED_BY              VARCHAR2(200),
+  LOG_NAME                VARCHAR2(200),
+  LOG_INDEX               Number,
+  LOG_VALUES              VARCHAR2(4000),
+  Value_Checked           Char(1) Default 'N',
+  FORMAT_CALL_STACK       VARCHAR2(4000),
+  FORMAT_ERROR_STACK      VARCHAR2(4000),
+  FORMAT_ERROR_BACKTRACE  VARCHAR2(4000),
+  GET_CPU_TIME            NUMBER,
+  DETAILS                 CLOB
+);
+
+create sequence PLSQL_LOG_seq start with 1 nocache nocycle
+
+
+---------  Revision  ---------
+sr      Task Name            Date                    By
+********************************************************************************
+1)      add boolean          05-may-2018             falick
+2)      refactoring          29-Nov-2018             falick
+3)      add Pragma 
+        autonomus_Transaction 29-Nov-2018            falick 
+4)                 
+
+*/
+
+  G_Log_name plsql_log.log_name%type;
+  
+    --// PROCEDURE
+  
+  Procedure Set_log_name(p_logName In varchar2);
+  
+  PROCEDURE ADD_LOG(P_LOG_VALUES IN VARCHAR2 default 'UNNAMED' ,p_details in varchar2 default 'Null');
+
+  PROCEDURE DISPLAY_LOG(P_LOG_ID IN NUMBER);  
+  /*
+  Give the Log Name who you want to access
+  */
+  PROCEDURE DISPLAY_LOG(P_Log_name IN Varchar2 default null , p_checked in char default Null);
+  
+  PROCEDURE Mark_LOG (P_Log_name IN  Varchar2 default 'UNNAMED');
+ 
+  FUNCTION BOOLEAN_CONVERTOR(P_INT IN INTEGER )  RETURN BOOLEAN ;
+
+  FUNCTION BOOLEAN_CONVERTOR(P_BOOL IN BOOLEAN )  RETURN INTEGER ;
+
+  --//FUNCTIONS
+  FUNCTION FORMAT_CALL_STACK  RETURN VARCHAR2;
+
+  FUNCTION FORMAT_ERROR_STACK  RETURN VARCHAR2;
+
+  FUNCTION FORMAT_ERROR_BACKTRACE  RETURN VARCHAR2 ;
+  
+  
+END;
+/

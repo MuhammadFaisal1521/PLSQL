@@ -1,0 +1,90 @@
+CREATE OR REPLACE PACKAGE pkg1 AUTHID DEFINER AS
+  TYPE numset_t IS TABLE OF NUMBER;
+  FUNCTION f1(x NUMBER) RETURN numset_t PIPELINED;
+END pkg1;
+/
+
+
+
+CREATE OR REPLACE PACKAGE BODY pkg1 AS
+  FUNCTION f1(x NUMBER) RETURN numset_t PIPELINED IS
+  BEGIN
+    FOR i IN 1..x LOOP
+      PIPE ROW(i);
+    END LOOP;
+    RETURN;
+  END f1;
+END pkg1;
+
+
+SELECT * FROM TABLE(pkg1.f1(5));
+
+
+
+
+
+CREATE OR REPLACE PACKAGE refcur_pkg AUTHID DEFINER IS
+  TYPE refcur_t IS REF CURSOR RETURN employees%ROWTYPE;
+  TYPE outrec_typ IS RECORD (
+    var_num    NUMBER(6),
+    var_char1  VARCHAR2(30),
+    var_char2  VARCHAR2(30)
+  );
+  TYPE outrecset IS TABLE OF outrec_typ;
+  FUNCTION f_trans (p refcur_t) RETURN outrecset PIPELINED;
+END refcur_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY refcur_pkg IS
+  FUNCTION f_trans (p refcur_t) RETURN outrecset PIPELINED IS
+    out_rec outrec_typ;
+    in_rec  p%ROWTYPE;
+  BEGIN
+    LOOP
+      FETCH p INTO in_rec;  -- input row
+      EXIT WHEN p%NOTFOUND;
+
+      out_rec.var_num := in_rec.employee_id;
+      out_rec.var_char1 := in_rec.first_name;
+      out_rec.var_char2 := in_rec.last_name;
+      PIPE ROW(out_rec);  -- first transformed output row
+
+      out_rec.var_char1 := in_rec.email;
+      out_rec.var_char2 := in_rec.phone_number;
+      PIPE ROW(out_rec);  -- second transformed output row
+    END LOOP;
+    CLOSE p;
+    RETURN;
+  END f_trans;
+END refcur_pkg;
+/
+
+SELECT * FROM TABLE (
+  refcur_pkg.f_trans (
+    CURSOR (SELECT * FROM employees WHERE department_id = 60)
+  )
+);
+
+
+
+
+SELECT * FROM TABLE(tf2(CURSOR(SELECT * FROM TABLE(tf1()))));
+
+
+
+DECLARE
+  r SYS_REFCURSOR;
+  ...
+  -- First PL/SQL statement (slower):
+BEGIN
+  OPEN r FOR SELECT * FROM TABLE(f(CURSOR(SELECT * FROM tab)));
+  SELECT * BULK COLLECT INTO rec_tab FROM TABLE(g(r));
+
+  -- NOTE: When g completes, it closes r.
+END;
+
+-- Second PL/SQL statement (faster):
+
+SELECT * FROM TABLE(g(CURSOR(SELECT * FROM
+  TABLE(f(CURSOR(SELECT * FROM tab))))));
+/

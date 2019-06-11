@@ -1,0 +1,174 @@
+The following code is used to create a sample stored procedure to test.
+It uses the dbms_application_info.set_session_longops to insert "tags" that can be read by the Forms application.
+
+
+Create or replace procedure Progress_Bar
+As
+   rindex pls_integer := -1;
+   slno   pls_integer;
+Begin
+  -----------------------------------------------------
+  --  procedure that does nothing else than waiting  --
+  --  to illustrate the ProgressBar Forms sample     --
+  -----------------------------------------------------
+   dbms_application_info.set_session_longops(
+     RINDEX      => rindex
+    ,SLNO        => slno
+    ,OP_NAME     => 'PROGRESS_BAR'
+    ,SOFAR       => 0
+    ,TOTALWORK   => 100
+   );
+   --  simulating the task progress  --
+   For i IN 1..100 loop
+     DBMS_LOCK.SLEEP(.3);
+     dbms_application_info.set_session_longops(
+       RINDEX      => rindex
+      ,SLNO        => slno
+      ,OP_NAME     => 'PROGRESS_BAR'
+      ,SOFAR       => i
+      ,TOTALWORK   => 100
+     );
+   End loop;
+End;
+
+
+Then the following Forms PL/SQL code (both 9i and 10g database version are provided)
+Depending on the database version you have, paste the corresponding code in the When-Button-Pressed trigger of the sample dialog shipped.
+
+
+------------------------
+--  Database 10g code --
+------------------------
+Declare
+  v_jobname  Varchar2(30) := 'PROGRESS_BAR_JOB' ;
+  v_jobid    Number := 12345 ;
+  v_percent  Number :=  0 ;
+  v_end      Exception ;
+  v_nb       Pls_integer ;
+  v_pass     Pls_integer := 0 ;   
+begin
+  -- we start the stored procedure through the DBMS_SCHEDULER.CREATE_JOB function --
+  dbms_scheduler.create_job(
+    job_name   => v_jobname
+   ,job_type   => 'stored_procedure'
+   ,job_action => 'Progress_Bar'
+   ,start_date => SYSDATE
+   ,enabled    => TRUE
+  );
+ 
+  -- job's running? --
+  Loop
+     Select count(*)
+     Into   v_nb
+     From   USER_SCHEDULER_JOBS
+     Where  JOB_NAME = v_jobname;
+    
+     v_pass := v_pass + 1 ;
+     If v_pass > 100 Then
+           -- le job ne se lance pas --
+           message('Job not running',acknowledge);
+           Raise Form_Trigger_Failure ;
+     End if ;
+     exit when v_nb > 0  ;
+     dbms_lock.sleep(.2);
+  End loop ;
+ 
+  set_item_property('blo_progress.progressbar', width, 0);
+  v_percent :=0;
+ 
+  -- following the procedure's execution --
+  Loop   
+     
+      Exit when v_percent >= 100;
+      Select  (sofar / totalwork) * 100
+      Into    v_percent
+      From    v$session_longops
+      Where   opname = 'PROGRESS_BAR' and sofar < totalwork;
+          
+      :blo_progress.progressbar:= v_percent||'%';
+      set_item_property('blo_progress.progressbar',width, round( v_percent*2,2));
+      synchronize;
+    
+  End loop;
+
+  raise v_end ;
+ 
+Exception
+   When NO_DATA_FOUND then
+      set_item_property('blo_progress.progressbar', width, 200);
+      :blo_progress.progressbar:= '100%';
+      raise v_end ;
+   When TOO_MANY_ROWS then
+      raise v_end ;
+   When v_end then
+      DBMS_SCHEDULER.drop_job (job_name => v_jobname,FORCE=> true) ;  
+   When Others then
+      DBMS_SCHEDULER.drop_job (job_name => v_jobname,FORCE=> true) ;  
+End;
+
+
+-----------------------
+--  Database 9i code --
+-----------------------
+Declare
+  v_jobname  Varchar2(30) := 'PROGRESS_BAR_JOB' ;
+  v_jobid    Number := 12345 ;
+  v_percent  Number :=  0 ;
+  v_end      Exception ;
+  v_nb       Pls_integer ;
+  v_pass     Pls_integer := 0 ;   
+begin
+  -- we start the stored procedure through the DBMS_JOB.ISUBMIT function --
+  dbms_job.isubmit(v_jobid,'Progress_Bar;',sysdate,null);
+  forms_ddl('commit') ;
+  dbms_job.run(v_jobid);
+ 
+  -- job's running? --
+  Loop
+    Select count(job)
+    Into   v_nb
+    From   user_jobs
+    Where  job= v_jobid
+    And    total_time!=0;
+    
+     v_pass := v_pass + 1 ;
+     If v_pass > 100 Then
+           -- le job ne se lance pas --
+           message('Job not running',acknowledge);
+           Raise Form_Trigger_Failure ;
+     End if ;
+     exit when v_nb > 0  ;
+     dbms_lock.sleep(.2);
+  End loop ;
+ 
+  set_item_property('blo_progress.progressbar', width, 0);
+  v_percent :=0;
+ 
+  -- following the procedure's execution --
+  Loop   
+     
+      Exit when v_percent >= 100;
+      Select  (sofar / totalwork) * 100
+      Into    v_percent
+      From    v$session_longops
+      Where   opname = 'PROGRESS_BAR' and sofar < totalwork;
+          
+      :blo_progress.progressbar:= v_percent||'%';
+      set_item_property('blo_progress.progressbar',width, round( v_percent*2,2));
+      synchronize;
+    
+  End loop;
+
+  raise v_end ;
+ 
+Exception
+   When NO_DATA_FOUND then
+      set_item_property('blo_progress.progressbar', width, 200);
+      :blo_progress.progressbar:= '100%';
+      raise v_end ;
+   When TOO_MANY_ROWS then
+      raise v_end ;
+   When v_end Then
+   Delete From USER_JOBS Where JOB = v_jobid ;
+   Forms_ddl('commit');
+End;

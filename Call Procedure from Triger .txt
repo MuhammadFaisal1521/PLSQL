@@ -1,0 +1,5 @@
+Begin 
+			Tgc_corr.create_job;
+exception when form_trigger_failure 		then 
+				raise;	
+end;
